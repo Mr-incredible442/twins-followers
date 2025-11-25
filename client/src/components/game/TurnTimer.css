@@ -1,8 +1,8 @@
 .turn-timer {
   position: fixed;
-  top: 20px;
+  top: 80px;
   right: 20px;
-  z-index: 1000;
+  z-index: 999;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -93,7 +93,7 @@
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .turn-timer {
-    top: 10px;
+    top: 70px;
     right: 10px;
   }
 

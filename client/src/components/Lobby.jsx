@@ -15,7 +15,7 @@ import {
 import { useGame } from '../context/useGame';
 import GameBoard from './GameBoard';
 
-const Lobby = () => {
+const Lobby = ({ onNavigateToHome }) => {
   const {
     room,
     publicLobbies,
@@ -103,11 +103,20 @@ const Lobby = () => {
             <Card>
               <Card.Header className='d-flex justify-content-between align-items-center'>
                 <h3>{room.name}</h3>
-                <Button
-                  variant='outline-danger'
-                  onClick={() => setShowLeaveConfirm(true)}>
-                  Leave Room
-                </Button>
+                <div className='d-flex gap-2'>
+                  {onNavigateToHome && (
+                    <Button
+                      variant='outline-secondary'
+                      onClick={onNavigateToHome}>
+                      Home
+                    </Button>
+                  )}
+                  <Button
+                    variant='outline-danger'
+                    onClick={() => setShowLeaveConfirm(true)}>
+                    Leave Room
+                  </Button>
+                </div>
               </Card.Header>
               <Card.Body>
                 <div className='mb-3'>
@@ -178,6 +187,13 @@ const Lobby = () => {
   // Show room creation/joining interface
   return (
     <Container className='mt-5'>
+      {onNavigateToHome && (
+        <div className='mb-3 text-end'>
+          <Button variant='outline-secondary' onClick={onNavigateToHome}>
+            Home
+          </Button>
+        </div>
+      )}
       <Row>
         <Col md={6}>
           <Card>

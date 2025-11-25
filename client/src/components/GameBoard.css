@@ -61,6 +61,11 @@
   filter: brightness(1.2);
 }
 
+/* Game Table Container - Prevent scrolling on game board */
+.game-table-container {
+  overflow: hidden !important;
+}
+
 /* Responsive Styles */
 @media (max-width: 768px) {
   .game-table-container {
@@ -88,14 +93,8 @@
   }
 }
 
-/* Global Overrides */
-body {
-  overflow: hidden !important;
-}
-
-html {
-  overflow: hidden !important;
-}
+/* Global Overrides - Only apply when GameBoard is active */
+/* These are now scoped to .game-table-container to avoid affecting other pages */
 
 /* Game Paused Modal Backdrop */
 .game-paused-backdrop {
