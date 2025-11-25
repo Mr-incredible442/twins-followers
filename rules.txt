@@ -1,0 +1,125 @@
+TWINS & FOLLOWERS – RULE SHEET
+
+(Zambian / House Rules Version – Multiplayer “Fight” Rule)
+
+1. Game Overview
+
+Twins & Followers is played with a standard 52-card deck.
+Objective: Form a winning 4-card hand containing:
+
+Two Twins: two cards of the same value
+
+Two Followers: two cards that follow each other according to the rules below
+
+The first player to achieve this combination wins the round.
+
+2. Setup
+
+Use a standard 52-card deck
+
+Deal 3 cards to each player
+
+Remaining cards form the draw pile
+
+Play moves clockwise
+
+3. Winning Hand
+
+A winning hand consists of:
+
+Twins: two cards with the same number or face (suits don’t matter)
+
+Followers: two cards that legally follow each other
+
+4. Sequence Rules (Followers)
+A. Numeric Path
+
+Sequence: A → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10
+
+Allowed followers: next or previous number (forward/backward)
+
+Special cases:
+
+A can follow 2 and vice versa
+
+10 can  follow 9 and vice versa
+
+B. Face Card Path
+
+Face cards (J, Q, K) follow each other bidirectionally
+
+J → Q/K, Q → J/K, K → J/Q
+
+C. Restrictions
+
+Numeric + face cards cannot form followers
+
+Examples of valid followers:
+
+Numeric: 3 → 2 or 3 → 4
+
+Numeric: 9 → 8 or 9 → 10
+
+Face cards: J → Q, J → K, Q → J, K → J
+
+Examples NOT allowed:
+
+10 → J, J → 10, A → K, 3 → 5
+
+5. Gameplay
+
+On your turn, draw one card from the draw pile
+
+Check your hand:
+
+Winning hand → declare and win
+
+Not winning → discard one card face-up, return to 3 cards
+
+Play passes clockwise
+
+6. Picking Up Discards
+
+You may pick up only the most recently discarded card
+
+Can claim it only if it immediately completes your winning hand
+
+Cards discarded during a fight cannot be used to win
+
+7. Multiplayer “Fight” Rule
+
+If multiple players can win using the latest discarded card:
+
+Each winning player drops one card from their winning combination
+
+Draw one random card from the remaining deck
+
+Discarded cards from the fight cannot be used to win
+
+The game continues normally after the fight
+
+Example:
+
+Player 2 has Q–Q + 4, Player 4 has 10–9 + 5
+
+Player 2 drops 4, Player 4 drops 5
+
+Each draws a random card
+
+8. Round End
+
+Normally: reveal a 4-card hand (2 twins + 2 followers)
+
+After a fight: the winner is determined on subsequent turns
+
+Winner of the round starts the next round
+
+9. Common House Rules
+
+No talking or signaling about cards
+
+Fast play: 3–5 seconds per turn
+
+Players always have 3–4 cards
+
+Extra cards in hand are used only to form followers or twins as needed

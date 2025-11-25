@@ -1,0 +1,103 @@
+/* GameBoard Custom Styles */
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+@keyframes pulseGlow {
+  0%,
+  100% {
+    box-shadow: 0 0 15px rgba(40, 167, 69, 0.8);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(40, 167, 69, 1), 0 0 50px rgba(40, 167, 69, 0.6);
+  }
+}
+
+@keyframes fightGlow {
+  0%,
+  100% {
+    box-shadow: 0 0 25px rgba(220, 53, 69, 1), 0 0 50px rgba(220, 53, 69, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 35px rgba(220, 53, 69, 1), 0 0 70px rgba(220, 53, 69, 0.8);
+  }
+}
+
+/* Card Styles */
+.fanned-card {
+  position: relative;
+}
+
+.fanned-card:hover {
+  transform: translateY(-10px) scale(1.1) !important;
+  z-index: 999 !important;
+}
+
+.fanned-card .card-component {
+  position: relative;
+}
+
+.draw-pile-clickable:hover {
+  filter: brightness(1.2);
+}
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+  .game-table-container {
+    overflow: hidden !important;
+  }
+
+  .game-table {
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+  }
+
+  .floating-action-bar {
+    flex-direction: column;
+    width: 90%;
+    bottom: 10px !important;
+    position: fixed !important;
+  }
+
+  .floating-action-bar button {
+    width: 100%;
+    font-size: 14px;
+    padding: 8px 16px;
+  }
+}
+
+/* Global Overrides */
+body {
+  overflow: hidden !important;
+}
+
+html {
+  overflow: hidden !important;
+}
+
+/* Game Paused Modal Backdrop */
+.game-paused-backdrop {
+  background-color: rgba(0, 0, 0, 0.8) !important;
+}
