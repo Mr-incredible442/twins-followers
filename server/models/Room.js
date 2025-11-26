@@ -67,9 +67,11 @@ const roomSchema = new mongoose.Schema(
   },
 );
 
-// Index for faster queries
+// Indexes for faster queries
 // Note: id field already has unique: true which creates an index automatically
-roomSchema.index({ status: 1, isPrivate: 1 });
+roomSchema.index({ status: 1, isPrivate: 1 }); // Compound index for public lobby queries
+roomSchema.index({ 'players.socketId': 1 }); // For getPlayerRoom() queries
+roomSchema.index({ 'players.playerName': 1 }); // For getPlayerRoomByName() and restore-state queries
 
 const Room = mongoose.model('Room', roomSchema);
 

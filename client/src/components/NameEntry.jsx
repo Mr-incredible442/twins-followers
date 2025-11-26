@@ -18,7 +18,7 @@ const NameEntry = ({ onSubmit }) => {
     <Modal show={show} centered backdrop="static" keyboard={false}>
       <Modal.Body>
         <Form onSubmit={handleSubmit}>
-          <Form.Group className="mb-3">
+          <Form.Group className="mb-3" controlId="playerNameInput">
             <Form.Label>Enter Your Name</Form.Label>
             <Form.Control
               type="text"
@@ -27,6 +27,7 @@ const NameEntry = ({ onSubmit }) => {
               onChange={(e) => setName(e.target.value)}
               autoFocus
               maxLength={20}
+              name="playerName"
             />
           </Form.Group>
           <Button variant="primary" type="submit" disabled={!name.trim()}>

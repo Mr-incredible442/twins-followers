@@ -1,6 +1,25 @@
 import { Container, Button, Card } from 'react-bootstrap';
+import { useNavigate } from 'react-router-dom';
+import { useGame } from '../context/useGame';
 
-const RulesPage = ({ onPlayNow, onBackToHome }) => {
+const RulesPage = () => {
+  const navigate = useNavigate();
+  const { playerName } = useGame();
+
+  const handlePlayNow = () => {
+    // Check if player has a name
+    if (!playerName || playerName.trim().length === 0) {
+      // Navigate to lobby, which will show name entry modal
+      navigate('/lobby');
+    } else {
+      // Go directly to lobby
+      navigate('/lobby');
+    }
+  };
+
+  const handleBackToHome = () => {
+    navigate('/');
+  };
   return (
     <Container fluid style={{ minHeight: '100vh', padding: '2rem' }}>
       <div style={{ maxWidth: '900px', margin: '0 auto' }}>
@@ -10,7 +29,7 @@ const RulesPage = ({ onPlayNow, onBackToHome }) => {
           <Button
             variant="primary"
             size="lg"
-            onClick={onPlayNow}
+            onClick={handlePlayNow}
             className="mb-3"
             style={{ minWidth: '200px' }}>
             Play Now
@@ -157,14 +176,14 @@ const RulesPage = ({ onPlayNow, onBackToHome }) => {
           <Button
             variant="primary"
             size="lg"
-            onClick={onPlayNow}
+            onClick={handlePlayNow}
             style={{ minWidth: '200px' }}>
             Play Now
           </Button>
           <Button
             variant="outline-secondary"
             size="lg"
-            onClick={onBackToHome}
+            onClick={handleBackToHome}
             style={{ minWidth: '200px' }}>
             Back to Home
           </Button>

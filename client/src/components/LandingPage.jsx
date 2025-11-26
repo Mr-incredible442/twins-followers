@@ -1,7 +1,25 @@
 import { Container, Button, Card } from 'react-bootstrap';
+import { useNavigate } from 'react-router-dom';
 import { useGame } from '../context/useGame';
 
-const LandingPage = ({ onPlayNow, onViewRules }) => {
+const LandingPage = () => {
+  const navigate = useNavigate();
+  const { playerName } = useGame();
+
+  const handlePlayNow = () => {
+    // Check if player has a name
+    if (!playerName || playerName.trim().length === 0) {
+      // Navigate to lobby, which will show name entry modal
+      navigate('/lobby');
+    } else {
+      // Go directly to lobby
+      navigate('/lobby');
+    }
+  };
+
+  const handleViewRules = () => {
+    navigate('/rules');
+  };
   return (
     <Container fluid className="d-flex align-items-center justify-content-center" style={{ minHeight: '100vh', padding: '2rem' }}>
       <div className="text-center" style={{ maxWidth: '800px', width: '100%' }}>
@@ -32,14 +50,14 @@ const LandingPage = ({ onPlayNow, onViewRules }) => {
           <Button
             variant="primary"
             size="lg"
-            onClick={onPlayNow}
+            onClick={handlePlayNow}
             style={{ minWidth: '200px', fontSize: '1.1rem', padding: '0.75rem 2rem' }}>
             Play Now
           </Button>
           <Button
             variant="outline-secondary"
             size="lg"
-            onClick={onViewRules}
+            onClick={handleViewRules}
             style={{ minWidth: '200px', fontSize: '1.1rem', padding: '0.75rem 2rem' }}>
             View Rules
           </Button>

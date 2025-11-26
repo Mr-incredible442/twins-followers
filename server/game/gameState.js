@@ -28,7 +28,7 @@ async function saveGameState(gameState) {
       ...gameState,
       updatedAt: new Date(),
     },
-    { upsert: true, new: true }
+    { upsert: true, new: true },
   );
   return toPlainObject(updated);
 }
@@ -152,7 +152,7 @@ function reshuffleDiscardPile(gameState) {
 
   // Take all cards from discard pile (excluding lastDiscard which is still available)
   let cardsToReshuffle = [];
-  
+
   // If there's a lastDiscard, exclude it from the reshuffle (it's stored separately and can still be picked up)
   if (gameState.lastDiscard) {
     // Find and exclude the lastDiscard from discardPile
@@ -214,6 +214,106 @@ function nextTurn(gameState) {
     gameState.turnStartTime = new Date();
   }
   return gameState;
+}
+
+/**
+ * Determine which card a winner will drop during a fight
+ * @param {Object} winner - Player who can win with the discarded card
+ * @param {Object} discardedCard - The card that triggers the fight
+ * @returns {Object|null} The card to drop, or null if not found
+ */
+function determineDropCard(winner, discardedCard) {
+  const tempHand = [...winner.hand, discardedCard];
+  const winningHand = gameLogic.checkWinningHand(tempHand);
+  if (!winningHand) return null;
+
+  // Check if discarded card is part of the twins pair
+  if (
+    winningHand.twins.some(
+      (c) => c.value === discardedCard.value && c.suit === discardedCard.suit,
+    )
+  ) {
+    // Find the card in twins that's in player's hand
+    for (const card of winningHand.twins) {
+      if (
+        winner.hand.some((c) => c.value === card.value && c.suit === card.suit)
+      ) {
+        return { ...card };
+      }
+    }
+  } else {
+    // Discarded card must be part of the followers pair
+    for (const card of winningHand.followers) {
+      if (
+        winner.hand.some((c) => c.value === card.value && c.suit === card.suit)
+      ) {
+        return { ...card };
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Capture fight data for display purposes
+ * @param {Array} winners - Array of players who can win with the discarded card
+ * @param {Object} discardedCard - The card that triggers the fight
+ * @returns {Object} Fight data object with participants, original hands, and dropped cards
+ */
+function captureFightData(winners, discardedCard) {
+  const fightOriginalHands = {};
+  const fightDroppedCards = {};
+  const fightParticipants = [];
+
+  for (const winner of winners) {
+    fightParticipants.push(winner.playerName);
+    // Deep copy original hand
+    fightOriginalHands[winner.playerName] = JSON.parse(
+      JSON.stringify(winner.hand),
+    );
+
+    // Determine which card this player will drop
+    const dropCard = determineDropCard(winner, discardedCard);
+    if (dropCard) {
+      fightDroppedCards[winner.playerName] = dropCard;
+    }
+  }
+
+  return {
+    fightCard: { ...discardedCard },
+    fightParticipants,
+    fightOriginalHands,
+    fightDroppedCards,
+    createdAt: new Date(),
+  };
+}
+
+/**
+ * Process a fight: handle multiple winners and update game state
+ * @param {Object} gameState - Current game state
+ * @param {Array} winners - Array of players who can win with the discarded card
+ * @param {Object} discardedCard - The card that triggers the fight
+ */
+function processFight(gameState, winners, discardedCard) {
+  // Capture fight data before resolving the fight
+  gameState.fightData = captureFightData(winners, discardedCard);
+
+  // Reshuffle discard pile if deck is empty before fight
+  ensureDeckHasCards(gameState);
+
+  // Execute the fight
+  const fightResult = gameLogic.handleFight(
+    winners,
+    discardedCard,
+    gameState.deck,
+    gameState.discardPile,
+  );
+
+  gameState.deck = fightResult.deck;
+  gameState.discardPile = fightResult.discardPile;
+  gameState.lastDiscard = null; // Card is voided during fight
+  gameState.message = `Fight! ${winners.length} players could win with that card`;
 }
 
 /**
@@ -350,82 +450,7 @@ async function discardCard(roomId, socketId, card) {
 
   if (winners.length > 1) {
     // Multiple players can win - handle fight
-    // Capture fight data BEFORE resolving the fight
-    const fightOriginalHands = {};
-    const fightDroppedCards = {};
-    const fightParticipants = [];
-
-    for (const winner of winners) {
-      fightParticipants.push(winner.playerName);
-      // Deep copy original hand
-      fightOriginalHands[winner.playerName] = JSON.parse(
-        JSON.stringify(winner.hand),
-      );
-
-      // Determine which card this player will drop (same logic as handleFight)
-      const tempHand = [...winner.hand, discardedCard];
-      const winningHand = gameLogic.checkWinningHand(tempHand);
-      if (winningHand) {
-        let dropCard = null;
-
-        // Check if discarded card is part of the twins pair
-        if (
-          winningHand.twins.some(
-            (c) => c.value === discardedCard.value && c.suit === discardedCard.suit,
-          )
-        ) {
-          // Find the card in twins that's in player's hand
-          for (const card of winningHand.twins) {
-            if (
-              winner.hand.some(
-                (c) => c.value === card.value && c.suit === card.suit,
-              )
-            ) {
-              dropCard = { ...card };
-              break;
-            }
-          }
-        } else {
-          // Discarded card must be part of the followers pair
-          for (const card of winningHand.followers) {
-            if (
-              winner.hand.some(
-                (c) => c.value === card.value && c.suit === card.suit,
-              )
-            ) {
-              dropCard = { ...card };
-              break;
-            }
-          }
-        }
-
-        if (dropCard) {
-          fightDroppedCards[winner.playerName] = dropCard;
-        }
-      }
-    }
-
-    // Store fight data
-    gameState.fightData = {
-      fightCard: { ...discardedCard },
-      fightParticipants,
-      fightOriginalHands,
-      fightDroppedCards,
-      createdAt: new Date(),
-    };
-
-    // Reshuffle discard pile if deck is empty before fight
-    ensureDeckHasCards(gameState);
-    const fightResult = gameLogic.handleFight(
-      winners,
-      discardedCard,
-      gameState.deck,
-      gameState.discardPile,
-    );
-    gameState.deck = fightResult.deck;
-    gameState.discardPile = fightResult.discardPile;
-    gameState.lastDiscard = null; // Card is voided during fight
-    gameState.message = `Fight! ${winners.length} players could win with that card`;
+    processFight(gameState, winners, discardedCard);
     // Move to next turn after fight
     nextTurn(gameState);
   } else if (winners.length === 1) {
@@ -564,9 +589,8 @@ async function restartGame(roomId, players = null) {
   }
 
   // Use provided players or get from room, filtering out disconnected players
-  const playersToUse = players || room.players.filter(
-    (p) => p.socketId && p.socketId !== ''
-  );
+  const playersToUse =
+    players || room.players.filter((p) => p.socketId && p.socketId !== '');
 
   // Delete old game state
   await GameState.deleteOne({ roomId });
@@ -704,7 +728,7 @@ async function removeDisconnectedPlayers(roomId, playerNames) {
 
   // Remove disconnected players
   gameState.players = gameState.players.filter(
-    (p) => !playerNames.includes(p.playerName)
+    (p) => !playerNames.includes(p.playerName),
   );
 
   // Add their cards to bottom of discard pile
@@ -717,23 +741,24 @@ async function removeDisconnectedPlayers(roomId, playerNames) {
   if (gameState.players.length < minPlayers) {
     // Not enough players - game should end
     gameState.phase = 'ended';
-    gameState.message = gameState.players.length === 0 
-      ? 'All players disconnected' 
-      : 'Not enough players to continue';
+    gameState.message =
+      gameState.players.length === 0
+        ? 'All players disconnected'
+        : 'Not enough players to continue';
     await saveGameState(gameState);
     return { success: true, gameState, shouldEndGame: true };
   }
 
   // If it was a disconnected player's turn, skip to next player
   const wasDisconnectedPlayerTurn = playersToRemove.some(
-    (p) => p.socketId === gameState.currentPlayerSocketId
+    (p) => p.socketId === gameState.currentPlayerSocketId,
   );
 
   if (wasDisconnectedPlayerTurn && gameState.players.length > 0) {
     // Find the index of the disconnected player
     const disconnectedIndex = playersToRemove[0]
       ? gameState.players.findIndex(
-          (p) => p.playerName === playersToRemove[0].playerName
+          (p) => p.playerName === playersToRemove[0].playerName,
         )
       : -1;
 
@@ -791,7 +816,7 @@ async function autoSkipTurn(roomId) {
   }
 
   const currentPlayer = gameState.players.find(
-    (p) => p.socketId === gameState.currentPlayerSocketId
+    (p) => p.socketId === gameState.currentPlayerSocketId,
   );
 
   if (!currentPlayer) {
@@ -802,7 +827,10 @@ async function autoSkipTurn(roomId) {
   if (gameState.phase === 'draw') {
     // Auto-draw from deck
     if (!ensureDeckHasCards(gameState)) {
-      return { success: false, error: 'Deck is empty and no cards to reshuffle' };
+      return {
+        success: false,
+        error: 'Deck is empty and no cards to reshuffle',
+      };
     }
 
     const drawnCard = gameState.deck.shift();
@@ -836,80 +864,15 @@ async function autoSkipTurn(roomId) {
 
     // Check if any other players can win with this card
     const winners = gameLogic.playersCanWinWithCard(
-      gameState.players.filter((p) => p.socketId !== gameState.currentPlayerSocketId),
+      gameState.players.filter(
+        (p) => p.socketId !== gameState.currentPlayerSocketId,
+      ),
       discardedCard,
     );
 
     if (winners.length > 1) {
       // Multiple players can win - handle fight
-      const fightOriginalHands = {};
-      const fightDroppedCards = {};
-      const fightParticipants = [];
-
-      for (const winner of winners) {
-        fightParticipants.push(winner.playerName);
-        fightOriginalHands[winner.playerName] = JSON.parse(
-          JSON.stringify(winner.hand),
-        );
-
-        const tempHand = [...winner.hand, discardedCard];
-        const winningHand = gameLogic.checkWinningHand(tempHand);
-        if (winningHand) {
-          let dropCard = null;
-
-          if (
-            winningHand.twins.some(
-              (c) => c.value === discardedCard.value && c.suit === discardedCard.suit,
-            )
-          ) {
-            for (const card of winningHand.twins) {
-              if (
-                winner.hand.some(
-                  (c) => c.value === card.value && c.suit === card.suit,
-                )
-              ) {
-                dropCard = { ...card };
-                break;
-              }
-            }
-          } else {
-            for (const card of winningHand.followers) {
-              if (
-                winner.hand.some(
-                  (c) => c.value === card.value && c.suit === card.suit,
-                )
-              ) {
-                dropCard = { ...card };
-                break;
-              }
-            }
-          }
-
-          if (dropCard) {
-            fightDroppedCards[winner.playerName] = dropCard;
-          }
-        }
-      }
-
-      gameState.fightData = {
-        fightCard: { ...discardedCard },
-        fightParticipants,
-        fightOriginalHands,
-        fightDroppedCards,
-        createdAt: new Date(),
-      };
-
-      ensureDeckHasCards(gameState);
-      const fightResult = gameLogic.handleFight(
-        winners,
-        discardedCard,
-        gameState.deck,
-        gameState.discardPile,
-      );
-      gameState.deck = fightResult.deck;
-      gameState.discardPile = fightResult.discardPile;
-      gameState.lastDiscard = null;
-      gameState.message = `Fight! ${winners.length} players could win with that card`;
+      processFight(gameState, winners, discardedCard);
       nextTurn(gameState);
     } else if (winners.length === 1) {
       // Single player can win - they win immediately

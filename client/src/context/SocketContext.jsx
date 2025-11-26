@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { SocketContext } from './socketContextValue';
+import { logger } from '../utils/logger';
 
 export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
@@ -37,7 +38,7 @@ export const SocketProvider = ({ children }) => {
     };
 
     const serverUrl = getServerUrl();
-    console.log('Connecting to server at:', serverUrl);
+    logger.log('Connecting to server at:', serverUrl);
 
     const newSocket = io(serverUrl, {
       transports: ['websocket', 'polling'], // Allow fallback to polling if websocket fails
@@ -51,17 +52,17 @@ export const SocketProvider = ({ children }) => {
     socketRef.current = newSocket;
 
     newSocket.on('connect', () => {
-      console.log('Connected to server');
+      logger.log('Connected to server');
       setConnected(true);
     });
 
     newSocket.on('disconnect', () => {
-      console.log('Disconnected from server');
+      logger.log('Disconnected from server');
       setConnected(false);
     });
 
     newSocket.on('connect_error', (error) => {
-      console.error('Connection error:', error);
+      logger.error('Connection error:', error);
     });
 
     // Set socket in next tick to avoid setState in effect

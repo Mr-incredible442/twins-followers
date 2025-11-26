@@ -5,24 +5,165 @@
 import Room from '../models/Room.js';
 
 // Generate a unique 6-character alphanumeric room ID
-async function generateRoomId() {
+// @param {number} retries - Number of retries remaining (default: 10)
+async function generateRoomId(retries = 10) {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   let roomId = '';
   for (let i = 0; i < 6; i++) {
     roomId += chars.charAt(Math.floor(Math.random() * chars.length));
   }
+
   // Ensure uniqueness by checking database
-  const existing = await Room.findOne({ id: roomId });
+  // Use lean() and select only id field for faster query
+  const existing = await Room.findOne({ id: roomId }).lean().select('id');
   if (existing) {
-    return generateRoomId();
+    if (retries <= 0) {
+      throw new Error(
+        'Failed to generate unique room ID after multiple attempts',
+      );
+    }
+    return generateRoomId(retries - 1);
   }
   return roomId;
+}
+
+// Generate a random room name
+function generateRoomName() {
+  const adjectives = [
+    'Swift',
+    'Bold',
+    'Quick',
+    'Brave',
+    'Clever',
+    'Mighty',
+    'Epic',
+    'Legendary',
+    'Fierce',
+    'Noble',
+    'Wild',
+    'Savage',
+    'Royal',
+    'Ancient',
+    'Mystic',
+    'Golden',
+    'Silver',
+    'Crimson',
+    'Shadow',
+    'Thunder',
+    'Storm',
+    'Fire',
+    'Ice',
+    'Dragon',
+    'Phoenix',
+    'Titan',
+    'Warrior',
+    'Elite',
+    'Supreme',
+    'Ultimate',
+    'Divine',
+    'Cosmic',
+    'Stellar',
+    'Galactic',
+    'Nova',
+    'Vortex',
+    'Blade',
+    'Fury',
+    'Rage',
+    'Valor',
+    'Honor',
+    'Glory',
+    'Victory',
+    'Champion',
+    'Master',
+    'Grand',
+    'Prime',
+    'Alpha',
+    'Omega',
+    'Zenith',
+    'Apex',
+    'Peak',
+    'Summit',
+    'Crown',
+    'Reign',
+    'Empire',
+  ];
+  const nouns = [
+    'Room',
+    'Match',
+    'Arena',
+    'Battle',
+    'Challenge',
+    'Quest',
+    'Game',
+    'Lobby',
+    'Hall',
+    'Court',
+    'Field',
+    'Ring',
+    'Pit',
+    'Colosseum',
+    'Stadium',
+    'Theater',
+    'Duel',
+    'Clash',
+    'War',
+    'Fight',
+    'Showdown',
+    'Tournament',
+    'Championship',
+    'League',
+    'Trial',
+    'Test',
+    'Proving',
+    'Grounds',
+    'Domain',
+    'Realm',
+    'Kingdom',
+    'Empire',
+    'Fortress',
+    'Castle',
+    'Tower',
+    'Sanctuary',
+    'Temple',
+    'Shrine',
+    'Altar',
+    'Throne',
+    'Crown',
+    'Scepter',
+    'Blade',
+    'Shield',
+    'Banner',
+    'Standard',
+    'Flag',
+    'Emblem',
+    'Legacy',
+    'Legend',
+    'Saga',
+    'Tale',
+    'Story',
+    'Chronicle',
+    'History',
+    'Destiny',
+    'Fate',
+    'Fortune',
+    'Glory',
+    'Honor',
+    'Valor',
+    'Courage',
+    'Strength',
+    'Power',
+  ];
+  const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
+  const noun = nouns[Math.floor(Math.random() * nouns.length)];
+  const number = Math.floor(Math.random() * 99) + 1;
+  return `${adjective} ${noun} ${number}`;
 }
 
 /**
  * Convert MongoDB document to plain object
  * @param {Object} doc - Mongoose document
  * @returns {Object} Plain object
+ * @deprecated Most queries now use .lean() which returns plain objects directly
  */
 function toPlainObject(doc) {
   if (!doc) return null;
@@ -31,17 +172,19 @@ function toPlainObject(doc) {
 
 /**
  * Create a new room
- * @param {string} name - Room display name
+ * @param {string} [name] - Room display name (optional, will generate if not provided)
  * @param {boolean} isPrivate - Whether the room is private
  * @param {string} [password] - Password for private rooms
  * @returns {Promise<Object>} Created room object
  */
-async function createRoom(name, isPrivate, password = null) {
+async function createRoom(name = null, isPrivate, password = null) {
   const roomId = await generateRoomId();
-  
+  // Generate a random name if none provided
+  const roomName = name || generateRoomName();
+
   const roomData = {
     id: roomId,
-    name,
+    name: roomName,
     password: isPrivate ? password : null,
     isPrivate,
     players: [],
@@ -53,7 +196,7 @@ async function createRoom(name, isPrivate, password = null) {
 
   const room = new Room(roomData);
   await room.save();
-  return toPlainObject(room);
+  return room.toObject();
 }
 
 /**
@@ -62,8 +205,8 @@ async function createRoom(name, isPrivate, password = null) {
  * @returns {Promise<Object|null>} Room object or null if not found
  */
 async function getRoom(roomId) {
-  const room = await Room.findOne({ id: roomId });
-  return toPlainObject(room);
+  const room = await Room.findOne({ id: roomId }).lean();
+  return room;
 }
 
 /**
@@ -74,8 +217,8 @@ async function getRoom(roomId) {
 async function getPlayerRoom(socketId) {
   const room = await Room.findOne({
     'players.socketId': socketId,
-  });
-  return toPlainObject(room);
+  }).lean();
+  return room;
 }
 
 /**
@@ -88,8 +231,8 @@ async function getPlayerRoomByName(playerName) {
   const room = await Room.findOne({
     'players.playerName': playerName,
     'players.socketId': { $ne: '', $exists: true }, // Only find if socket ID is not empty
-  });
-  return toPlainObject(room);
+  }).lean();
+  return room;
 }
 
 /**
@@ -107,7 +250,7 @@ async function removeDisconnectedPlayers(roomId) {
   const updatedRoom = await Room.findOneAndUpdate(
     { id: roomId },
     { $pull: { players: { socketId: '' } } },
-    { new: true }
+    { new: true, lean: true },
   );
 
   if (!updatedRoom) {
@@ -127,15 +270,26 @@ async function removeDisconnectedPlayers(roomId) {
 
 /**
  * Update a player's socket ID in a room (for reconnection)
+ * Optimized version that accepts room to avoid redundant queries
  * @param {string} roomId - Room ID
  * @param {string} playerName - Name of the player
  * @param {string} newSocketId - New socket ID (empty string to mark as disconnected)
+ * @param {Object} [existingRoom] - Optional: room object if already fetched
  * @returns {Promise<{success: boolean, room?: Object, error?: string}>} Update result
  */
-async function updatePlayerSocketId(roomId, playerName, newSocketId) {
-  const room = await getRoom(roomId);
+async function updatePlayerSocketId(
+  roomId,
+  playerName,
+  newSocketId,
+  existingRoom = null,
+) {
+  // Use provided room if available, otherwise fetch it
+  let room = existingRoom;
   if (!room) {
-    return { success: false, error: 'Room not found' };
+    room = await getRoom(roomId);
+    if (!room) {
+      return { success: false, error: 'Room not found' };
+    }
   }
 
   // Check if player exists in room
@@ -145,26 +299,36 @@ async function updatePlayerSocketId(roomId, playerName, newSocketId) {
   }
 
   // If setting a new socket ID (not empty), check if it's already in use
-  if (newSocketId && newSocketId !== '') {
-    const existingRoom = await getPlayerRoom(newSocketId);
-    if (existingRoom && existingRoom.id !== roomId) {
-      return { success: false, error: 'Socket ID already in use in another room' };
+  // Only check if socketId is being changed
+  if (newSocketId && newSocketId !== '' && player.socketId !== newSocketId) {
+    const existingRoomWithSocket = await Room.findOne({
+      'players.socketId': newSocketId,
+      id: { $ne: roomId }, // Different room
+    })
+      .lean()
+      .select('id');
+
+    if (existingRoomWithSocket) {
+      return {
+        success: false,
+        error: 'Socket ID already in use in another room',
+      };
     }
   }
 
-  // Update the player's socket ID
+  // Update the player's socket ID atomically
   const updatedRoom = await Room.findOneAndUpdate(
-    { 
+    {
       id: roomId,
       'players.playerName': playerName,
     },
-    { 
+    {
       $set: { 'players.$.socketId': newSocketId },
     },
-    { new: true }
+    { new: true, lean: true },
   );
 
-  return { success: true, room: toPlainObject(updatedRoom) };
+  return { success: true, room: updatedRoom };
 }
 
 /**
@@ -180,7 +344,8 @@ function validateRoomJoin(room, password = null, playerName = null) {
   }
 
   // Check if this is a reconnection (player already in room)
-  const isReconnection = playerName && room.players.some((p) => p.playerName === playerName);
+  const isReconnection =
+    playerName && room.players.some((p) => p.playerName === playerName);
 
   // Allow reconnection even if game is playing
   if (room.status === 'playing' && !isReconnection) {
@@ -203,6 +368,7 @@ function validateRoomJoin(room, password = null, playerName = null) {
 
 /**
  * Join a room
+ * Optimized to reduce sequential database queries
  * @param {string} roomId - Room ID to join
  * @param {string} socketId - Socket ID of joining player
  * @param {string} playerName - Name of the player
@@ -210,45 +376,78 @@ function validateRoomJoin(room, password = null, playerName = null) {
  * @returns {Promise<{success: boolean, room?: Object, error?: string}>} Join result
  */
 async function joinRoom(roomId, socketId, playerName, password = null) {
-  const room = await getRoom(roomId);
-  
+  // Parallel queries: get room and check if player is in another room
+  const [room, currentRoom] = await Promise.all([
+    Room.findOne({ id: roomId }).lean(),
+    Room.findOne({ 'players.socketId': socketId }).lean().select('id'),
+  ]);
+
   const validation = validateRoomJoin(room, password, playerName);
   if (!validation.valid) {
     return { success: false, error: validation.error };
   }
 
-  // Check if player with this name is already in this room (reconnection case)
-  const existingPlayer = room.players.find((p) => p.playerName === playerName);
-  if (existingPlayer) {
-    // Player is reconnecting - update their socket ID
-    return updatePlayerSocketId(roomId, playerName, socketId);
-  }
-
-  // Check if player is already in this room with this socket ID
-  if (room.players.some((player) => player.socketId === socketId)) {
-    return { success: false, error: 'Already in this room' };
-  }
-
-  // Check if player is in another room
-  const currentRoom = await getPlayerRoom(socketId);
-  if (currentRoom) {
+  // Check if player is in another room (from parallel query)
+  if (currentRoom && currentRoom.id !== roomId) {
     return { success: false, error: 'Already in another room' };
   }
 
-  // Add new player to room
-  const player = {
-    socketId,
-    playerName,
-    joinedAt: new Date(),
-  };
+  // Check if player is already in this room with this socket ID
+  // (We already checked it's not in another room, so if currentRoom exists and id matches, they're already here)
+  if (currentRoom && currentRoom.id === roomId) {
+    // Double-check by looking in the room data we have
+    if (room.players.some((player) => player.socketId === socketId)) {
+      return { success: false, error: 'Already in this room' };
+    }
+  }
 
+  // Check if player with this name is already in this room (reconnection case)
+  const existingPlayer = room.players.find((p) => p.playerName === playerName);
+  if (existingPlayer) {
+    // Player is reconnecting - update their socket ID atomically
+    // We already verified socket isn't in another room, so safe to update
+    const updatedRoom = await Room.findOneAndUpdate(
+      {
+        id: roomId,
+        'players.playerName': playerName,
+      },
+      {
+        $set: { 'players.$.socketId': socketId },
+      },
+      { new: true, lean: true },
+    );
+
+    if (!updatedRoom) {
+      return { success: false, error: 'Failed to update socket ID' };
+    }
+
+    return { success: true, room: updatedRoom };
+  }
+
+  // Add new player to room using findOneAndUpdate with validation
+  // This ensures room still exists and isn't full
   const updatedRoom = await Room.findOneAndUpdate(
-    { id: roomId },
-    { $push: { players: player } },
-    { new: true }
+    {
+      id: roomId,
+      $expr: { $lt: [{ $size: '$players' }, '$maxPlayers'] }, // Room not full
+    },
+    {
+      $push: {
+        players: {
+          socketId,
+          playerName,
+          joinedAt: new Date(),
+        },
+      },
+    },
+    { new: true, lean: true },
   );
 
-  return { success: true, room: toPlainObject(updatedRoom) };
+  if (!updatedRoom) {
+    return { success: false, error: 'Room not found or is full' };
+  }
+
+  return { success: true, room: updatedRoom };
 }
 
 /**
@@ -267,7 +466,7 @@ async function leaveRoom(roomId, socketId) {
   const updatedRoom = await Room.findOneAndUpdate(
     { id: roomId },
     { $pull: { players: { socketId } } },
-    { new: true }
+    { new: true, lean: true },
   );
 
   if (!updatedRoom) {
@@ -287,35 +486,46 @@ async function leaveRoom(roomId, socketId) {
 
 /**
  * Get all public lobbies that are not full
+ * Uses MongoDB aggregation to filter in database for better performance
  * @returns {Promise<Array>} Array of public room objects (without sensitive data)
  */
 async function getPublicLobbies() {
-  const rooms = await Room.find({
-    isPrivate: false,
-    status: 'waiting',
-  });
+  const rooms = await Room.aggregate([
+    // Match public, waiting rooms
+    {
+      $match: {
+        isPrivate: false,
+        status: 'waiting',
+      },
+    },
+    // Add field for player count
+    {
+      $addFields: {
+        playerCount: { $size: '$players' },
+      },
+    },
+    // Filter out full rooms (done in database, not JavaScript)
+    {
+      $match: {
+        $expr: { $lt: ['$playerCount', '$maxPlayers'] },
+      },
+    },
+    // Project only needed fields (excludes password and full player objects)
+    {
+      $project: {
+        id: 1,
+        name: 1,
+        isPrivate: 1,
+        playerCount: 1,
+        maxPlayers: 1,
+        minPlayers: 1,
+        createdAt: 1,
+        status: 1,
+      },
+    },
+  ]);
 
-  const publicRooms = [];
-  
-  for (const room of rooms) {
-    const roomObj = toPlainObject(room);
-    // Only include rooms that are not full
-    if (roomObj.players.length < roomObj.maxPlayers) {
-      // Return room info without password
-      publicRooms.push({
-        id: roomObj.id,
-        name: roomObj.name,
-        isPrivate: roomObj.isPrivate,
-        playerCount: roomObj.players.length,
-        maxPlayers: roomObj.maxPlayers,
-        minPlayers: roomObj.minPlayers,
-        createdAt: roomObj.createdAt,
-        status: roomObj.status,
-      });
-    }
-  }
-
-  return publicRooms;
+  return rooms;
 }
 
 /**
@@ -338,10 +548,7 @@ async function removePlayer(socketId) {
  * @param {string} status - New status ('waiting' or 'playing')
  */
 async function updateRoomStatus(roomId, status) {
-  await Room.findOneAndUpdate(
-    { id: roomId },
-    { status },
-  );
+  await Room.findOneAndUpdate({ id: roomId }, { status }, { lean: true });
 }
 
 /**
@@ -357,7 +564,7 @@ async function getDecisionMaker(roomId) {
 
   // First player in join order (original creator)
   const firstPlayer = room.players[0];
-  
+
   // If first player has a valid socket ID, they're the decision maker
   if (firstPlayer.socketId && firstPlayer.socketId !== '') {
     return {

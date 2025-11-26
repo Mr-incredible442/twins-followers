@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSocket } from './useSocket';
 import { GameContext } from './gameContextValue';
+import { logger } from '../utils/logger';
 
 export const GameProvider = ({ children }) => {
   const { socket, connected } = useSocket();
@@ -14,6 +15,19 @@ export const GameProvider = ({ children }) => {
   const [disconnectedPlayers, setDisconnectedPlayers] = useState([]);
   const [isDecisionMaker, setIsDecisionMaker] = useState(false);
   const socketIdRef = useRef(null);
+
+  // Helper function to update pause state from game state
+  const updatePauseStateFromGameState = useCallback(
+    (gameStateData) => {
+      if (gameStateData) {
+        setGamePaused(gameStateData.isPaused || false);
+        setPausedReason(gameStateData.pausedReason || null);
+        setDisconnectedPlayers(gameStateData.disconnectedPlayers || []);
+        setIsDecisionMaker(gameStateData.decisionMakerSocketId === socketId);
+      }
+    },
+    [socketId],
+  );
 
   const restoreState = useCallback(() => {
     if (!socket || !playerName) return;
@@ -97,39 +111,28 @@ export const GameProvider = ({ children }) => {
       if (room) {
         setRoom({ ...room, status: 'playing' });
       }
-      // Update pause state from game state
-      if (data.gameState) {
-        setGamePaused(data.gameState.isPaused || false);
-        setPausedReason(data.gameState.pausedReason || null);
-        setDisconnectedPlayers(data.gameState.disconnectedPlayers || []);
-        setIsDecisionMaker(
-          data.gameState.decisionMakerSocketId === socket.id
-        );
-      }
+      updatePauseStateFromGameState(data.gameState);
     });
 
     socket.on('game-update', (data) => {
       setGameState(data.gameState);
-      // Update pause state from game state
-      if (data.gameState) {
-        setGamePaused(data.gameState.isPaused || false);
-        setPausedReason(data.gameState.pausedReason || null);
-        setDisconnectedPlayers(data.gameState.disconnectedPlayers || []);
-        setIsDecisionMaker(
-          data.gameState.decisionMakerSocketId === socket.id
-        );
-      }
+      updatePauseStateFromGameState(data.gameState);
     });
 
     socket.on('game-paused', (data) => {
-      setGamePaused(true);
-      setPausedReason(data.reason);
-      setDisconnectedPlayers(data.disconnectedPlayers || []);
-      // Check if current player is decision maker from gameState
+      // Use the helper function if we have gameState, otherwise set manually
       if (gameState) {
-        setIsDecisionMaker(
-          gameState.decisionMakerSocketId === socket.id
-        );
+        updatePauseStateFromGameState({
+          ...gameState,
+          isPaused: true,
+          pausedReason: data.reason,
+          disconnectedPlayers: data.disconnectedPlayers || [],
+        });
+      } else {
+        setGamePaused(true);
+        setPausedReason(data.reason);
+        setDisconnectedPlayers(data.disconnectedPlayers || []);
+        setIsDecisionMaker(data.decisionMakerSocketId === socket.id);
       }
     });
 
@@ -143,7 +146,7 @@ export const GameProvider = ({ children }) => {
     socket.on('player-reconnected', (data) => {
       // Update disconnected players list
       setDisconnectedPlayers((prev) =>
-        prev.filter((name) => name !== data.playerName)
+        prev.filter((name) => name !== data.playerName),
       );
     });
 
@@ -155,7 +158,7 @@ export const GameProvider = ({ children }) => {
     });
 
     socket.on('game-error', (data) => {
-      console.error('Game error:', data.error);
+      logger.error('Game error:', data.error);
       // Handle game errors
     });
 
@@ -172,7 +175,7 @@ export const GameProvider = ({ children }) => {
       socket.off('decision-required');
       socket.off('game-error');
     };
-  }, [socket, room]);
+  }, [socket, room, updatePauseStateFromGameState, gameState]);
 
   const createRoom = (name, isPrivate, password = null) => {
     return new Promise((resolve, reject) => {
@@ -225,7 +228,7 @@ export const GameProvider = ({ children }) => {
   const startGame = () => {
     socket.emit('start-game', {}, (response) => {
       if (!response.success) {
-        console.error('Failed to start game:', response.error);
+        logger.error('Failed to start game:', response.error);
       }
     });
   };
@@ -233,7 +236,7 @@ export const GameProvider = ({ children }) => {
   const drawCard = () => {
     socket.emit('draw-card', {}, (response) => {
       if (!response.success) {
-        console.error('Failed to draw card:', response.error);
+        logger.error('Failed to draw card:', response.error);
       }
     });
   };
@@ -241,7 +244,7 @@ export const GameProvider = ({ children }) => {
   const discardCard = (card) => {
     socket.emit('discard-card', { card }, (response) => {
       if (!response.success) {
-        console.error('Failed to discard card:', response.error);
+        logger.error('Failed to discard card:', response.error);
       }
     });
   };
@@ -249,7 +252,7 @@ export const GameProvider = ({ children }) => {
   const pickUpDiscard = () => {
     socket.emit('pick-up-discard', {}, (response) => {
       if (!response.success) {
-        console.error('Failed to pick up discard:', response.error);
+        logger.error('Failed to pick up discard:', response.error);
       }
     });
   };
@@ -257,7 +260,7 @@ export const GameProvider = ({ children }) => {
   const declareWin = () => {
     socket.emit('declare-win', {}, (response) => {
       if (!response.success) {
-        console.error('Failed to declare win:', response.error);
+        logger.error('Failed to declare win:', response.error);
       }
     });
   };

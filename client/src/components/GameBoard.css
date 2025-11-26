@@ -100,3 +100,14 @@
 .game-paused-backdrop {
   background-color: rgba(0, 0, 0, 0.8) !important;
 }
+
+/* Game Leave Modal - Ensure it's on top */
+.game-leave-modal-backdrop {
+  background-color: rgba(0, 0, 0, 0.8) !important;
+  z-index: 99998 !important;
+}
+
+/* Ensure GameRoute modal is always on top */
+.modal.show[style*='z-index: 99999'] {
+  z-index: 99999 !important;
+}

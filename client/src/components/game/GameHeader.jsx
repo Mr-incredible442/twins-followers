@@ -44,7 +44,7 @@ const GameHeader = ({
         size={windowWidth < 768 ? 'sm' : 'md'}
         onClick={onLeaveRoom}
         style={{ flexShrink: 0 }}>
-        Leave Room
+        {gamePhase && gamePhase !== 'ended' ? 'Leave Match' : 'Leave Room'}
       </Button>
     </div>
   );

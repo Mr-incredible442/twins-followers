@@ -18,8 +18,9 @@ function setupRoomHandlers(socket, io) {
     try {
       const { name, isPrivate, password, playerName } = data;
 
-      if (!name || typeof name !== 'string') {
-        return callback?.({ success: false, error: 'Room name is required' });
+      // Name is optional - will be auto-generated if not provided
+      if (name && typeof name !== 'string') {
+        return callback?.({ success: false, error: 'Room name must be a string' });
       }
 
       if (!playerName || typeof playerName !== 'string') {
@@ -36,9 +37,9 @@ function setupRoomHandlers(socket, io) {
         });
       }
 
-      // Create the room
+      // Create the room (name is optional, will be auto-generated)
       const room = await roomManager.createRoom(
-        name,
+        name || null,
         Boolean(isPrivate),
         password || null,
       );
@@ -221,21 +222,23 @@ function setupRoomHandlers(socket, io) {
       // Find room by player name (including disconnected players with empty socket ID)
       const room = await Room.findOne({
         'players.playerName': playerName,
-      });
+      }).lean();
       
       if (!room) {
         // Player not in any room
         return callback?.({ success: false, error: 'Not in any room' });
       }
 
-      // Convert to plain object
-      const roomObj = room.toObject ? room.toObject() : room;
+      // Room is already a plain object when using lean()
+      const roomObj = room;
 
       // Update player's socket ID in room
+      // Pass existing room to avoid re-fetching
       const updateResult = await roomManager.updatePlayerSocketId(
         roomObj.id,
         playerName,
-        socket.id
+        socket.id,
+        roomObj // Pass room to avoid redundant query
       );
 
       if (!updateResult.success) {
@@ -351,10 +354,12 @@ function setupRoomHandlers(socket, io) {
         }
 
         // Mark player as disconnected
+        // Pass currentRoom to avoid re-fetching
         const result = await roomManager.updatePlayerSocketId(
           roomId,
           playerName,
-          '' // Set to empty string to mark as disconnected
+          '', // Set to empty string to mark as disconnected
+          currentRoom // Pass room to avoid redundant query
         );
 
         if (!result.success) {
